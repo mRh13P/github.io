@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NhatBop</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #333;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #gameOver {
+            position: absolute;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1024" height="768"></canvas>
+    <img id="gameOverImg" src="assets/message.png" style="display:none;">
+    <img id="birdImg" src="assets/yellowbird-midflap.png" style="display:none;">
+    <img id="pipeImg" src="assets/pipe-green.png" style="display:none;">
+    <img id="bgImg" src="/assets/background-night.png" style="display:none;">
+
+    <script>
+        // Game variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverImg = document.getElementById('gameOverImg');
+        const birdImg = document.getElementById('birdImg');
+        const pipeImg = document.getElementById('pipeImg');
+        const bgImg = document.getElementById('bgImg');
+        
+        let gravity = 0.2;
+        let birdMovement = 0;
+        let gameActive = true;
+        let score = 0;
+        let highScore = 0;
+        let pipes = [];
+        let pipeHeight = [200, 300, 400];
+        let scoreSoundCountdown = 100;
+        
+        // Bird properties
+        const bird = {
+            x: 200,
+            y: 384,
+            width: 34,
+            height: 24,
+            frame: 0,
+            frames: [
+                '/assets/yellowbird-downflap.png',
+                'assets/yellowbird-midflap.png',
+                'assets/yellowbird-upflap.png'
+            ],
+            images: []
+        };
+        
+        // Load images
+        function loadImages() {
+            return new Promise((resolve) => {
+                let loaded = 0;
+                const total = bird.frames.length + 4; // bird frames + other images
+                
+                // Load bird animation frames
+                bird.frames.forEach((src, i) => {
+                    const img = new Image();
+                    img.src = src;
+                    img.onload = () => {
+                        bird.images[i] = img;
+                        loaded++;
+                        if (loaded === total) resolve();
+                    };
+                });
+                
+                // Load other images
+                const images = [
+                    { element: gameOverImg, src: gameOverImg.src },
+                    { element: birdImg, src: birdImg.src },
+                    { element: pipeImg, src: pipeImg.src },
+                    { element: bgImg, src: bgImg.src }
+                ];
+                
+                images.forEach(item => {
+                    const img = new Image();
+                    img.src = item.src;
+                    img.onload = () => {
+                        item.element.src = item.src;
+                        loaded++;
+                        if (loaded === total) resolve();
+                    };
+                });
+            });
+        }
+        
+        // Create pipes
+        function createPipe() {
+            const randomPos = pipeHeight[Math.floor(Math.random() * pipeHeight.length)];
+            const bottomPipe = {
+                x: 1040,
+                y: randomPos,
+                width: 52,
+                height: 320,
+                isTop: false
+            };
+            const topPipe = {
+                x: 1040,
+                y: randomPos - 850,
+                width: 52,
+                height: 320,
+                isTop: true
+            };
+            return [bottomPipe, topPipe];
+        }
+        
+        // Move pipes
+        function movePipes() {
+            pipes.forEach(pipe => {
+                pipe.x -= 5;
+            });
+            pipes = pipes.filter(pipe => pipe.x > -pipe.width);
+        }
+        
+        // Draw pipes
+        function drawPipes() {
+            pipes.forEach(pipe => {
+                if (pipe.isTop) {
+                    ctx.save();
+                    ctx.scale(1, -1);
+                    ctx.drawImage(pipeImg, pipe.x, -pipe.y - pipe.height, pipe.width, pipe.height);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(pipeImg, pipe.x, pipe.y, pipe.width, pipe.height);
+                }
+            });
+        }
+        
+        // Check collision
+        function checkCollision() {
+            // Check if bird hits the ground or ceiling
+            if (bird.y <= 0 || bird.y + bird.height >= canvas.height) {
+                return true;
+            }
+            
+            // Check if bird hits any pipe
+            for (const pipe of pipes) {
+                if (
+                    bird.x + bird.width > pipe.x &&
+                    bird.x < pipe.x + pipe.width &&
+                    bird.y + bird.height > pipe.y &&
+                    bird.y < pipe.y + pipe.height
+                ) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Rotate bird based on movement
+        function rotateBird() {
+            const angle = -birdMovement * 3 * Math.PI / 180;
+            ctx.save();
+            ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+            ctx.rotate(angle);
+            ctx.drawImage(bird.images[bird.frame], -bird.width / 2, -bird.height / 2, bird.width, bird.height);
+            ctx.restore();
+        }
+        
+        // Update bird animation
+        function updateBirdAnimation() {
+            bird.frame = (bird.frame + 1) % bird.frames.length;
+        }
+        
+        // Display score
+        function displayScore() {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '35px Arial';
+            ctx.textAlign = 'center';
+            
+            if (gameActive) {
+                ctx.fillText(Math.floor(score).toString(), 512, 200);
+            } else {
+                ctx.fillText(`Score: ${Math.floor(score)}`, 512, 200);
+                ctx.fillText(`High Score: ${Math.floor(highScore)}`, 512, 630);
+            }
+        }
+        
+        // Update high score
+        function updateHighScore() {
+            if (score > highScore) {
+                highScore = score;
+            }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+            
+            if (gameActive) {
+                // Update bird
+                birdMovement += gravity;
+                bird.y += birdMovement;
+                
+                // Draw bird
+                rotateBird();
+                
+                // Check collision
+                gameActive = !checkCollision();
+                
+                // Update pipes
+                movePipes();
+                drawPipes();
+                
+                // Update score
+                score += 0.01;
+                displayScore();
+                
+                // Play score sound occasionally
+                scoreSoundCountdown--;
+                if (scoreSoundCountdown <= 0) {
+                    // In a real implementation, you would play a sound here
+                    console.log("Score sound played");
+                    scoreSoundCountdown = 100;
+                }
+            } else {
+                // Game over screen
+                ctx.drawImage(gameOverImg, 512 - gameOverImg.width / 2, 384 - gameOverImg.height / 2);
+                updateHighScore();
+                displayScore();
+            }
+            
+            // Bird animation
+            if (Date.now() % 200 < 16) { // Every ~200ms
+                updateBirdAnimation();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                if (gameActive) {
+                    birdMovement = -7;
+                    // In a real implementation, you would play flap sound here
+                    console.log("Flap sound played");
+                } else {
+                    // Reset game
+                    gameActive = true;
+                    pipes = [];
+                    bird.y = 384;
+                    birdMovement = 0;
+                    score = 0;
+                }
+            }
+        });
+        
+        // Pipe spawn timer
+        setInterval(() => {
+            if (gameActive) {
+                pipes.push(...createPipe());
+            }
+        }, 2000);
+        
+        // Start game after images load
+        loadImages().then(() => {
+            gameLoop();
+        });
+    </script>
+</body>
+</html>

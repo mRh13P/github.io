@@ -45,20 +45,20 @@
         let score = 0;
         let highScore = 0;
         let pipes = [];
-        let pipeHeight = [200, 300, 400];
+        let pipeHeight = [500, 600, 700];
         let scoreSoundCountdown = 100;
         
         // Bird properties
         const bird = {
             x: 200,
             y: 384,
-            width: 34,
-            height: 24,
+            width: 177,
+            height: 135,
             frame: 0,
             frames: [
-                "assets/yellowbird-downflap.png",
-                "assets/yellowbird-midflap.png",
-                "assets/yellowbird-upflap.png"
+                'assets/yellowbird-downflap.png',
+                'assets/yellowbird-midflap.png',
+                'assets/yellowbird-upflap.png'
             ],
             images: []
         };
@@ -106,15 +106,15 @@
             const bottomPipe = {
                 x: 1040,
                 y: randomPos,
-                width: 52,
-                height: 320,
+                width: 120,
+                height: 420,
                 isTop: false
             };
             const topPipe = {
                 x: 1040,
-                y: randomPos - 850,
-                width: 52,
-                height: 320,
+                y: randomPos - 750,
+                width: 120,
+                height: 420,
                 isTop: true
             };
             return [bottomPipe, topPipe];

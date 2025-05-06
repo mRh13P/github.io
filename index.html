@@ -266,7 +266,21 @@
                 }
             }
         });
-        
+        // Thêm sự kiện cảm ứng
+        document.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Ngăn hành vi mặc định (như cuộn trang)
+            if (gameActive) {
+                birdMovement = -7;
+                console.log("Flap sound played (touch)");
+                } else {
+                // Reset game
+                gameActive = true;
+                pipes = [];
+                bird.y = 384;
+                birdMovement = 0;
+                score = 0;
+            }
+        });      
         // Pipe spawn timer
         setInterval(() => {
             if (gameActive) {

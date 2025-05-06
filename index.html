@@ -127,7 +127,26 @@
             });
             pipes = pipes.filter(pipe => pipe.x > -pipe.width);
         }
+        // Thêm vào phần khai báo biến
+        const sounds = {
+            flap: new Audio('sound/sfx_wing.wav'),
+            hit: new Audio('sound/sfx_hit.wav'),
+            score: new Audio('sound/sfx_point.wav')
+        };
         
+        // Phát âm thanh khi nhấn Space hoặc chạm màn hình
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                sounds.flap.currentTime = 0;
+                sounds.flap.play();
+            }
+        });
+        
+        // Phát âm thanh khi va chạm
+        if (!gameActive && !hitSoundPlayed) {
+            sounds.hit.play();
+            hitSoundPlayed = true;
+        }
         // Draw pipes
         function drawPipes() {
             pipes.forEach(pipe => {
